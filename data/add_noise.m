@@ -3,6 +3,7 @@ RAW_DATA_DATASET_DIR = 'cv-corpus-20.0-delta-2024-12-06\en\clips\'
 DS_FORMAT = '*.mp3';
 
 SNR_LEVEL = 0;
+TARGET_FREQ = 8e3;
 NOISE = 'PinkNoise';
 
 TRAIN_SPLIT = 0.9;
@@ -27,15 +28,17 @@ timerStart = tic;
 fprintf("Loading %d recordings...", recNumber);
 for recCount = 1:recNumber
     %progressbar
-    if isequal(mod(recCount, floor(recNumber ./ 20)), 0)
+    if isequal(mod(recCount, floor(recNumber ./ 5)), 0)
         timer = toc(timerStart) * (recNumber - recCount) ./ recCount;
         disp(['Loaded ', num2str(recCount), ' .mp3 files out of ', num2str(recNumber), ...
             '. Estimated remaining time: ', ...
             num2str(floor(timer./60)), ' min ', ...
             num2str(mod(timer, 60)), ' s']);
     end
-    
-    [cleanAudio, noisyAudio] = AudioContainer.applyNoise(AudioContainer(cellPaths{recCount}), SNR_LEVEL);
+
+    sourceSampleAudio = AudioContainer(cellPaths{recCount});
+    resampledAudio = FeatureExtractor.Resample(sourceSampleAudio, TARGET_FREQ);
+    [cleanAudio, noisyAudio] = AudioContainer.applyNoise(resampledAudio, SNR_LEVEL);
     [audioObjContainer{recCount, :}] = deal(cleanAudio, noisyAudio);
 end
 
@@ -88,7 +91,7 @@ if ~exist(processedPath, 'dir')
     % Prepare csv metadata file, to distinguish between datasets used in
     % learning. The idea is to use a single one, but in practice this
     % varies.
-    fid = fopen(fullfile(outputPath, 'METADATA.csv'), 'wt');
+    fid = fopen(fullfile(processedPath, 'METADATA.csv'), 'wt');
     fprintf(fid, ['scriptLaunchTime,%s\n', 'recordingDataDir,%s\n', 'snrLevel,%d\n', 'noiseType,%s\n'], ...
         scriptLaunchDatetime, RAW_DATA_DATASET_DIR, SNR_LEVEL, NOISE);
     fclose(fid);
