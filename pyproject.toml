@@ -7,7 +7,7 @@ name = "denoiser"
 version = "0.0.1"
 description = "To-be-filled"
 authors = [
-  { name = "Mateusz Kr\u00f3l" },
+  { name = "Mateusz Krol" },
 ]
 
 readme = "README.md"
