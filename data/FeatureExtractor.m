@@ -1,14 +1,7 @@
 classdef FeatureExtractor
-    %AUDIOCONTAINER Summary of this class goes here
-    %   Detailed explanation goes here
-    
-    properties(Constant)
-        DEFAULT = 1;
-    
-    end
 
     methods(Static)
-        function spectrogram = deriveSpectrogram(audioSig, varargin)
+        function features = deriveSpectrogram(audioSig, varargin)
             p = inputParser;
             addRequired(p, 'Signal', @(x) isa(x, "AudioContainer"));
             addRequired(p, 'FFTLength', @(x) isnumeric(x) && x > 0);
@@ -19,6 +12,10 @@ classdef FeatureExtractor
             spectrogram = stft(audioSig.waveform, audioSig.freq, ...
                 "Window", hamming(p.Results.FFTLength, "periodic"), ...
                 "OverlapLength", p.Results.OverlapLength);
+            
+            % remove magnitude, discard symmetric part
+            magnitude = abs(spectrogram);
+            features = magnitude(1:size(magnitude, 1)/2 + 1, :);
 
         end
 

@@ -5,10 +5,15 @@ DS_FORMAT = '*.mp3';
 SNR_LEVEL = 0;
 TARGET_FREQ = 8e3;
 NOISE = 'PinkNoise';
+OUTPUT_DATA = 'Spectrogram absolute values'
 
-TRAIN_SPLIT = 0.9;
-TEST_SPLIT = 0.05;
-VAL_SPLIT = 0.05;
+
+TRAIN_SPLIT = 0.95;
+TEST_SPLIT = 1 - TRAIN_SPLIT;
+
+
+
+REC_NUMBER = 500;
 
 %% Notes
 %TODO: write a function to check against all METADATA files, to prevent
@@ -18,28 +23,44 @@ VAL_SPLIT = 0.05;
 % ####################################################################### %
 % ################## Load recordings and apply noise #################### %
 % ####################################################################### %
-recNumber = 100;
+
+% pick recordings randomly
 recPathsStruct = dir([fullfile(pwd, 'raw', RAW_DATA_DATASET_DIR), DS_FORMAT]);
 cellPaths = fullfile({recPathsStruct.folder}, {recPathsStruct.name});
-%audioObjContainer = cell(length(recPathsStruct), 2);
-audioObjContainer = cell(recNumber, 2);
+cellPaths = cellPaths(randperm(length(cellPaths))); % shuffle recordings
+
+audioObjContainer = cell(REC_NUMBER, 2);
+spectrogramContainer = cell(REC_NUMBER, 2);
+phaseContainer = cell(REC_NUMBER, 2);
 
 timerStart = tic;
-fprintf("Loading %d recordings...", recNumber);
-for recCount = 1:recNumber
+fprintf("Loading %d recordings...", REC_NUMBER);
+for recCount = 1:REC_NUMBER
     %progressbar
-    if isequal(mod(recCount, floor(recNumber ./ 5)), 0)
-        timer = toc(timerStart) * (recNumber - recCount) ./ recCount;
-        disp(['Loaded ', num2str(recCount), ' .mp3 files out of ', num2str(recNumber), ...
+    if isequal(mod(recCount, floor(REC_NUMBER ./ 50)), 0)
+        timer = toc(timerStart) * (REC_NUMBER - recCount) ./ recCount;
+        disp(['Loaded ', num2str(recCount), ' .mp3 files out of ', num2str(REC_NUMBER), ...
             '. Estimated remaining time: ', ...
             num2str(floor(timer./60)), ' min ', ...
             num2str(mod(timer, 60)), ' s']);
     end
 
+    % get audio
     sourceSampleAudio = AudioContainer(cellPaths{recCount});
     resampledAudio = FeatureExtractor.Resample(sourceSampleAudio, TARGET_FREQ);
     [cleanAudio, noisyAudio] = AudioContainer.applyNoise(resampledAudio, SNR_LEVEL);
     [audioObjContainer{recCount, :}] = deal(cleanAudio, noisyAudio);
+
+    % get spectrogram
+    cleanSpectrogram = FeatureExtractor.deriveSpectrogram(cleanAudio, 256, 256-64, 'Type', 'Asymmetric');
+    noisySpectrogram = FeatureExtractor.deriveSpectrogram(noisyAudio, 256, 256-64, 'Type', 'Asymmetric');
+    noisySequences = zeros(size(noisySpectrogram, 1), 8, size(noisySpectrogram, 2) - 8 + 1, 'double');
+    
+    for i = 1:size(noisySpectrogram, 2) - 8 + 1
+        noisySequences(:, :, i) = noisySpectrogram(:, i:i+8-1);
+    end
+    cleanSequences = cleanSpectrogram(:, 8:end);
+    [spectrogramContainer{recCount, :}] = deal(cleanSequences, noisySequences);
 end
 
 % ####################################################################### %
@@ -47,46 +68,48 @@ end
 % ####################################################################### %
 totalIdx = 1:size(audioObjContainer, 1);
 
-trainIdx = ismember(totalIdx, randperm(recNumber, TRAIN_SPLIT.*recNumber));
-trainRecs = audioObjContainer(trainIdx, :);
-testValRecs = audioObjContainer(~(trainIdx), :);
+% Dataset split
+trainIdx = ismember(totalIdx, randperm(REC_NUMBER, TRAIN_SPLIT.*REC_NUMBER));
+trainFeaturesCell = spectrogramContainer(trainIdx, :);
+testFeaturesCell = spectrogramContainer(~(trainIdx), :);
+testRecordingsCell = audioObjContainer(~(trainIdx), :);
 
-testValIdx = 1:size(testValRecs, 1);
-valTestSplit = VAL_SPLIT ./ (VAL_SPLIT + TEST_SPLIT);
+% Train data
+sourceTrain = cat(3, trainFeaturesCell{:, 2});
+targetTrain = cat(2, trainFeaturesCell{:, 1});
 
-valIdx = ismember(testValIdx, ...
-    randperm(length(testValIdx), floor(length(testValIdx) .* valTestSplit ) ));
-valRecs = testValRecs(valIdx, :);
-testRecs = testValRecs(~(valIdx), :);
-
+% Test data
+sourceTest = cat(3, testFeaturesCell{:, 2});
+targetTest = cat(2, testFeaturesCell{:, 1});
 
 % ####################################################################### %
 % ######################## create file structure ######################## %
 % ####################################################################### %
 
 scriptLaunchDatetime = string(datetime('now', 'Format','y-MM-d_HH-mm'));
-interimPath = fullfile(pwd, 'interim', scriptLaunchDatetime);
+
+%paths
 processedPath = fullfile(pwd, 'processed', scriptLaunchDatetime);
+trainPath = fullfile(processedPath, 'train');
+testPath = fullfile(processedPath, 'test');
 
 if ~exist(processedPath, 'dir')
     mkdir(processedPath);
 
     % Handle train data
-    mkdir(fullfile(processedPath, 'train'));
-    % HERE SAVE THE SPECTROGRAMS AS .mat
-
-    % Handle validate data
-    mkdir(fullfile(processedPath, 'validate'));
-    % HERE SAVE THE SPECTROGRAMS AS .mat
+    mkdir(trainPath);
+    save(fullfile(trainPath, "source.mat"), "sourceTrain",'-nocompression', '-v7.3');
+    save(fullfile(trainPath, "target.mat"), "targetTrain", '-nocompression', '-v7.3');
 
     % Handle test data
-    testPath = fullfile(processedPath, 'test');
     mkdir(testPath);
+    save(fullfile(testPath, "source.mat"), "sourceTest", '-nocompression', '-v7.3');
+    save(fullfile(testPath, "target.mat"), "targetTest", '-nocompression', '-v7.3');
+
     mkdir(fullfile(testPath, 'cleanrecs'));
     mkdir(fullfile(testPath, 'noisyrecs'));
-    % HERE SAVE THE SPECTROGRAMS AS .mat
-    cellfun(@(rec) rec.saveTarget(fullfile(testPath, 'cleanrecs')), testRecs(:, 1));
-    cellfun(@(rec) rec.saveTarget(fullfile(testPath, 'noisyrecs')), testRecs(:, 2));
+    cellfun(@(rec) rec.saveTarget(fullfile(testPath, 'cleanrecs')), testRecordingsCell(:, 1));
+    cellfun(@(rec) rec.saveTarget(fullfile(testPath, 'noisyrecs')), testRecordingsCell(:, 2));
     
     % Prepare csv metadata file, to distinguish between datasets used in
     % learning. The idea is to use a single one, but in practice this
