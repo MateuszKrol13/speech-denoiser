@@ -1,30 +1,10 @@
-from pathlib import Path
+from tensorflow.keras.models import load_model
+from scipy.io import loadmat
 
-import typer
-from loguru import logger
-from tqdm import tqdm
-
-from denoiser.config import MODELS_DIR, PROCESSED_DATA_DIR
-
-app = typer.Typer()
-
-
-@app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    features_path: Path = PROCESSED_DATA_DIR / "test_features.csv",
-    model_path: Path = MODELS_DIR / "model.pkl",
-    predictions_path: Path = PROCESSED_DATA_DIR / "test_predictions.csv",
-    # -----------------------------------------
-):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Performing inference for model...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Inference complete.")
-    # -----------------------------------------
-
+from denoiser.config import MODELS_DIR, TEST_DATA
 
 if __name__ == "__main__":
-    app()
+    input_data = r"F:\Magisterka\speech-denoiser\data\processed\2025-05-2_11-45\test\cleanrecs\inference\spectrogramMag.mat"
+
+    model = load_model("speech-denoiser//models//CNN-CED-1200.keras")
+    model.predict(input_data, batch_size=None, verbose="auto", steps=None, callbacks=None)

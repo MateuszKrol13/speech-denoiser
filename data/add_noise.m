@@ -5,16 +5,12 @@ DS_FORMAT = '*.mp3';
 SNR_LEVEL = 0;
 TARGET_FREQ = 8e3;
 NOISE = 'PinkNoise';
-OUTPUT_DATA = 'Spectrogram absolute values'
+OUTPUT_DATA = 'Spectrogram absolute values';
 
-
-TRAIN_SPLIT = 0.95;
+TRAIN_SPLIT = 0.97;
 TEST_SPLIT = 1 - TRAIN_SPLIT;
 
-
-
-REC_NUMBER = 500;
-
+REC_NUMBER = 1200;
 %% Notes
 %TODO: write a function to check against all METADATA files, to prevent
 %rerunning script with the same parameters
@@ -52,8 +48,8 @@ for recCount = 1:REC_NUMBER
     [audioObjContainer{recCount, :}] = deal(cleanAudio, noisyAudio);
 
     % get spectrogram
-    cleanSpectrogram = FeatureExtractor.deriveSpectrogram(cleanAudio, 256, 256-64, 'Type', 'Asymmetric');
-    noisySpectrogram = FeatureExtractor.deriveSpectrogram(noisyAudio, 256, 256-64, 'Type', 'Asymmetric');
+    [cleanSpectrogram, ~] = FeatureExtractor.deriveSpectrogram(cleanAudio, 256, 256-64, 'Type', 'Asymmetric');
+    [noisySpectrogram, ~] = FeatureExtractor.deriveSpectrogram(noisyAudio, 256, 256-64, 'Type', 'Asymmetric');
     noisySequences = zeros(size(noisySpectrogram, 1), 8, size(noisySpectrogram, 2) - 8 + 1, 'double');
     
     for i = 1:size(noisySpectrogram, 2) - 8 + 1
@@ -119,5 +115,3 @@ if ~exist(processedPath, 'dir')
         scriptLaunchDatetime, RAW_DATA_DATASET_DIR, SNR_LEVEL, NOISE);
     fclose(fid);
 end
-
-

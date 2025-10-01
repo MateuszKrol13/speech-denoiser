@@ -15,14 +15,14 @@ if __name__ == "__main__":
     train_y = np.array(f2.get('targetTrain'))
 
     # Model
-    model = cnn_ced(show_model=False)
+    model = cnn_ced(model_name="CNN-CED-1200", show_model=False)
 
     callbacks = [
         ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, verbose=1, min_lr=1e-4),
         LearningRateLogger(),
         TensorBoard(log_dir=REPORTS_DIR / model.name),
-        #LearningRateStopping(min_lr=1e-4)
+        LearningRateStopping(min_lr=1e-4),
     ]
 
-    result = model.fit(train_x, train_y, validation_split=0.05, batch_size=128, epochs=1, verbose=1, callbacks=callbacks)
+    result = model.fit(train_x, train_y, validation_split=0.05, batch_size=128, epochs=120, verbose=1, callbacks=callbacks)
     model.save(f"{MODELS_DIR / model.name}.keras")
