@@ -180,6 +180,8 @@ reports/*
 data/demos/*
 !reports/.gitkeep
 !reports/figures
+TODOs.txt
 
-# Recordings
+# Recordings & data
 *.mp3
+*.npy
