@@ -12,12 +12,25 @@ OUTPUT_DATA = 'Spectrogram absolute values'
 
 TRAIN_SPLIT = 0.97
 TEST_SPLIT = 1 - TRAIN_SPLIT
-REC_NUMBER = 1000  # To be deleted later on.
+REC_NUMBER = 10  # To be deleted later on.
 
 import os
 import numpy as np
 from time import perf_counter, sleep
 import librosa
+
+from validate_dataset import validate_noisy, validate_clear
+
+def conv_to_dataset(jagged_ndarray, noisy=False):
+    output = []
+    for spectrogram in jagged_ndarray:
+        features, frame = spectrogram.shape
+        assert features == 129
+        for f in range(frame-8+1):
+            add_frame = spectrogram[:, f] if not noisy else spectrogram[:, f:f + 8]  # Magic number to be described -> from moving window
+            output.append(add_frame)
+
+    return np.stack(output, axis=0)
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
     white_noise = np.random.randn(n_samples)
@@ -28,7 +41,6 @@ def generate_pink_noise(n_samples:int, sample_rate:int):
     pink_fft = white_fft * scale
     pink_noise = np.fft.irfft(pink_fft, n_samples)
     return pink_noise
-
 
 
 def apply_noise(clear_signal, noise_signal, *, snr_level):
@@ -103,8 +115,11 @@ if "__main__" == __name__:
         except Exception as e:
             pass
 
-    clean_array = np.concatenate(clear_input, axis=1)
-    noisy_array = np.concatenate(noisy_input, axis=1)
+    clean_array = conv_to_dataset(clear_input, noisy=False)
+    noisy_array = conv_to_dataset(noisy_input, noisy=True)
+    validate_clear(clean_array, clear_input)
+    validate_noisy(noisy_array, noisy_input)
+
     print("Processing finished! Saving dataset...")
 
     from datetime import datetime
