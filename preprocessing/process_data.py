@@ -1,5 +1,8 @@
 """
-Module for preparing data as input for Neural Network
+Module for preparing data as input for Neural Network.
+
+Output data will a 2D ndarray(shape=(features, window_count)) that contains concatenated frames of short-time fourier
+transform. Each index of noisy data corrseponds to each index of clean data.
 """
 SNR_LEVEL = 0
 TARGET_FREQ = 8000
@@ -9,7 +12,7 @@ OUTPUT_DATA = 'Spectrogram absolute values'
 
 TRAIN_SPLIT = 0.97
 TEST_SPLIT = 1 - TRAIN_SPLIT
-REC_NUMBER = 100  # To be deleted later on.
+REC_NUMBER = 1000  # To be deleted later on.
 
 import os
 import numpy as np
@@ -85,42 +88,31 @@ if "__main__" == __name__:
 
             # eight noisy consecutive frames are used to reconstruct first frame
             assert clean_spectrogram.shape == noisy_spectrogram.shape
-            for frame in range(0, clean_spectrogram.shape[1] - FRAMES_LENGTH):  # axis=1, get stft time domain
-                clear_input.append(clean_spectrogram[:, frame])
-                noisy_input.append(noisy_spectrogram[:, frame])
+            clear_input.append(abs(clean_spectrogram).astype('float32'))
+            noisy_input.append(abs(noisy_spectrogram).astype('float32'))
+
+        except ValueError as e:
+            print("Concatenation failed, terminating dataset generation!")
+            raise e
 
         except AssertionError as e:
+            print("Mismatch in spectrogram shapes, something went wrong... termintaing dataset generation!")
             # mismatch in shapes must be caught
             raise e
 
         except Exception as e:
             pass
-    print("Processing finished! Saving dataset...")
 
-    clear_input = np.asarray(clear_input)
-    noisy_input = np.asarray(noisy_input)
+    clean_array = np.concatenate(clear_input, axis=1)
+    noisy_array = np.concatenate(noisy_input, axis=1)
+    print("Processing finished! Saving dataset...")
 
     from datetime import datetime
     savefile = os.path.join("..\\data\\processed\\", datetime.now().strftime("%Y-%m-%d_%H-%M"))
-    train_path, test_path = os.path.join(savefile, "train"), os.path.join(savefile, "test")
-
+    clean_data, noisy_data = os.path.join(savefile, "clean.npy"), os.path.join(savefile, "noisy.npy")
     os.mkdir(savefile)
-    os.mkdir(train_path)
-    os.mkdir(test_path)
 
-    from sklearn.model_selection import train_test_split
-    x_train, x_test, y_train, y_test = train_test_split(
-        clear_input,
-        noisy_input,
-        train_size=0.95,
-        random_state=42,
-        shuffle=True
-    )
-    paths = [train_path] * 2 + [test_path] * 2
-    dir_names = ["x.npy", "y.npy"] * 2
-    save_paths = [os.path.join(pth, savefiles) for pth, savefiles in zip(paths, dir_names)]
-
-    for arr, save in zip((x_train, x_test, y_train, y_test), save_paths):
+    for arr, save in zip((clean_array.T, noisy_array.T), (clean_data, noisy_data)):
         with open(save, "wb") as f:
             np.save(f, arr)
 
