@@ -12,14 +12,14 @@ OUTPUT_DATA = 'Spectrogram absolute values'
 
 TRAIN_SPLIT = 0.97
 TEST_SPLIT = 1 - TRAIN_SPLIT
-REC_NUMBER = 10  # To be deleted later on.
+REC_NUMBER = 100  # To be deleted later on.
 
 import os
 import numpy as np
-from time import perf_counter, sleep
+from time import perf_counter
 import librosa
-
-from validate_dataset import validate_noisy, validate_clear
+from datetime import datetime
+import pickle
 
 def conv_to_dataset(jagged_ndarray, noisy=False):
     output = []
@@ -113,22 +113,16 @@ if "__main__" == __name__:
             raise e
 
         except Exception as e:
-            pass
-
-    clean_array = conv_to_dataset(clear_input, noisy=False)
-    noisy_array = conv_to_dataset(noisy_input, noisy=True)
-    validate_clear(clean_array, clear_input)
-    validate_noisy(noisy_array, noisy_input)
+            print("Exception happened, continuing...", e)
 
     print("Processing finished! Saving dataset...")
 
-    from datetime import datetime
     savefile = os.path.join("..\\data\\processed\\", datetime.now().strftime("%Y-%m-%d_%H-%M"))
-    clean_data, noisy_data = os.path.join(savefile, "clean.npy"), os.path.join(savefile, "noisy.npy")
+    clean_data, noisy_data = os.path.join(savefile, "clean.pkl"), os.path.join(savefile, "noisy.pkl")
     os.mkdir(savefile)
 
-    for arr, save in zip((clean_array.T, noisy_array.T), (clean_data, noisy_data)):
-        with open(save, "wb") as f:
-            np.save(f, arr)
+    for arr, save in zip((clear_input, noisy_input), (clean_data, noisy_data)):
+        with open(save, "wb") as file:
+            pickle.dump(arr, file)
 
     print("Done!")
