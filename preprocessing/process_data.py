@@ -13,7 +13,7 @@ from datetime import datetime
 import pickle
 from typing import Union
 
-from denoiser.config import DATA_STATS, RAW_DATA, SNR_LEVEL
+from denoiser.config import DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ
 
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
@@ -83,9 +83,10 @@ def prepare_data(
     phase_data = []  # Phase data from noisy recording can be used to deconstruct spectrogram into audio
 
     # Process loop
-    print(f"Loading and rocessing {min(rec_no, len(audio_files))} recordings...")
+    rec_no = min(rec_no, len(audio_files)) if rec_no is not None else len(audio_files)  # if not set, default to dir len
+    print(f"Loading and processing {rec_no} recordings...")
     timer_start = perf_counter()
-    for recording_no in range(min(rec_no, len(audio_files))):
+    for recording_no in range(rec_no):
         # Progress bar
         remaining_time = perf_counter() * (rec_no - recording_no + 1) / (
                     recording_no + 1)  # Estimate remaining by measuring elapsed
@@ -155,12 +156,12 @@ def prepare_data(
             print("Done!")
     else:
         for f_idx in range(len(audio_files)):
-            file_name = os.path.basename(audio_files[f_idx]).split('.')[0]
-            for arr, save in zip(
+            file_path = audio_files[f_idx].split('.')[0]  # path with file name, but no extension
+            for arr, save_suffix in zip(
                     (clean_data_magnitude[f_idx], noisy_data_magnitude[f_idx], phase_data[f_idx]),
                     ("_clean_mag.npy", "_noisy_mag.npy", "_phase.npy")
             ):
-                with open(os.path.join(file_name, save), "wb") as fs:
+                with open(file_path + save_suffix, "wb") as fs:
                     np.save(fs, arr)
 
     print("Saving metadata...", end="\n")
@@ -174,4 +175,5 @@ def prepare_data(
     print("Data processing finished!")
 
 if "__main__" == __name__:
-    prepare_data(include_phase=False, rec_no=2000)
+    pass
+    #prepare_data(include_phase=False, rec_no=100)

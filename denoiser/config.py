@@ -3,6 +3,7 @@ from numpy import mean, std
 
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]  # project root directory
+DATA_ROOT = PROJ_ROOT / "data"
 DATA_DIR = PROJ_ROOT / "data\\processed\\2025-10-11_16-13\\"
 RAW_DATA = PROJ_ROOT / "data\\raw\\cv-corpus-20.0-delta-2024-12-06\\en\\clips\\"
 
