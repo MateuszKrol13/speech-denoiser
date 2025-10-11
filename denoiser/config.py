@@ -3,7 +3,7 @@ from numpy import mean, std
 
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PROJ_ROOT / "data\\processed\\2025-10-09_13-59\\"
+DATA_DIR = PROJ_ROOT / "data\\processed\\2025-10-11_16-13\\"
 CLEAN_DATA = DATA_DIR / "clean.pkl"
 NOISY_DATA = DATA_DIR / "noisy.pkl"
 DATA_METADATA = DATA_DIR / "metadata.pkl"
