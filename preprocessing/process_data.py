@@ -4,6 +4,8 @@ Module for preparing data as input for Neural Network.
 Output data will a 2D ndarray(shape=(features, window_count)) that contains concatenated frames of short-time fourier
 transform. Each index of noisy data corrseponds to each index of clean data.
 """
+import json
+
 SNR_LEVEL = 0
 TARGET_FREQ = 8000
 FRAMES_LENGTH = 8
@@ -12,7 +14,7 @@ OUTPUT_DATA = 'Spectrogram absolute values'
 
 TRAIN_SPLIT = 0.97
 TEST_SPLIT = 1 - TRAIN_SPLIT
-REC_NUMBER = 100  # To be deleted later on.
+REC_NUMBER = 4000  # To be deleted later on.
 
 import os
 import numpy as np
@@ -20,6 +22,8 @@ from time import perf_counter
 import librosa
 from datetime import datetime
 import pickle
+
+from denoiser.config import DATA_METADATA, DATA_STATS, METADATA_READABLE
 
 def conv_to_dataset(jagged_ndarray, noisy=False):
     output = []
@@ -72,9 +76,9 @@ if "__main__" == __name__:
     noisy_input = []
 
     # Process loop
-    print(f"Loading and rocessing {REC_NUMBER} recordings...")
+    print(f"Loading and rocessing {min(REC_NUMBER, len(audio_files))} recordings...")
     timer_start = perf_counter()
-    for recording_no in range(REC_NUMBER):
+    for recording_no in range(min(REC_NUMBER, len(audio_files))):
         # Progress bar
         remaining_time = perf_counter() * (REC_NUMBER - recording_no + 1) / (
                     recording_no + 1)  # Estimate remaining by measuring elapsed
@@ -113,16 +117,37 @@ if "__main__" == __name__:
             raise e
 
         except Exception as e:
-            print("Exception happened, continuing...", e)
+            print("Exception happened, continuing...", e, end='\n')
 
-    print("Processing finished! Saving dataset...")
-
+    print(f"\nProcessing finished!\nNormalising data...")
     savefile = os.path.join("..\\data\\processed\\", datetime.now().strftime("%Y-%m-%d_%H-%M"))
-    clean_data, noisy_data = os.path.join(savefile, "clean.pkl"), os.path.join(savefile, "noisy.pkl")
     os.mkdir(savefile)
+    clean_data, noisy_data = os.path.join(savefile, "clean.pkl"), os.path.join(savefile, "noisy.pkl")
+    metadata_ = {}
 
     for arr, save in zip((clear_input, noisy_input), (clean_data, noisy_data)):
-        with open(save, "wb") as file:
-            pickle.dump(arr, file)
+        data_type = os.path.basename(save).split('.')[0]
+        print(f"Processing {data_type} data...", end="\t")
+        flatten_data = np.concatenate([a.flatten() for a in arr])
 
-    print("Done!")
+        for stat, func in DATA_STATS.items():
+            stat_name = "_".join([data_type, stat])
+            metadata_[stat_name] = func(flatten_data)
+
+        mean, std = metadata_[data_type + "_mean"], metadata_[data_type + "_std"]
+        norm_arr = [(a - mean) / std for a in arr]
+
+        print("saving...", end="\t")
+        with open(save, "wb") as file:
+            pickle.dump(norm_arr, file)
+        print("Done!")
+
+    print("Saving metadata...", end="\n")
+    with open(os.path.join(savefile, "metadata.pkl"), 'wb') as file:  # binary form as json lib does not like numpy types
+        pickle.dump(metadata_, file)
+
+    # readable form
+    with open(os.path.join(savefile, "metadata.txt"), 'w') as readable_file:
+        json.dump({k:float(v) for k, v in metadata_.items()}, readable_file)
+
+    print("Data processing finished!")

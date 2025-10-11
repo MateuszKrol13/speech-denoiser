@@ -1,12 +1,22 @@
 from pathlib import Path
+from numpy import mean, std
 
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]
-DATA_DIR = PROJ_ROOT / "data\\processed\\2025-05-2_11-45\\"
-TEST_DATA = DATA_DIR / "test"
-TRAIN_DATA = DATA_DIR / "train"
+DATA_DIR = PROJ_ROOT / "data\\processed\\2025-10-09_13-59\\"
+CLEAN_DATA = DATA_DIR / "clean.pkl"
+NOISY_DATA = DATA_DIR / "noisy.pkl"
+DATA_METADATA = DATA_DIR / "metadata.pkl"
+METADATA_READABLE = DATA_DIR / "metadata.txt"
+
 
 MODELS_DIR = PROJ_ROOT / "models"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
+
+# Data statistics
+DATA_STATS = {
+    'mean' : mean,
+    'std' : std,
+}
