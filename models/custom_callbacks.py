@@ -1,4 +1,4 @@
-from tensorflow.keras.callbacks import Callback, TensorBoard
+from tensorflow.keras.callbacks import Callback
 import tensorflow.keras.backend as K
 
 class LearningRateStopping(Callback):
@@ -13,16 +13,5 @@ class LearningRateStopping(Callback):
         lr = K.get_value(self.model.optimizer.lr)
 
         if lr <= self.min_lr:
-            print(f"\nStopping training: learning rate {lr} has reached the minimum threshold {self.min_lr}.")
+            print(f"\nStopping training: learning rate has reached the minimum threshold of {self.min_lr}.")
             self.model.stop_training = True
-
-
-class LearningRateLogger(Callback):
-    def __init__(self):
-        super().__init__()
-        self._supports_tf_logs = True
-
-    def on_epoch_end(self, epoch, logs=None):
-        if logs is None or "learning_rate" in logs:
-            return
-        logs["learning_rate"] = K.eval(self.model.optimizer.lr)

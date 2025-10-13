@@ -1,14 +1,12 @@
 import os.path
 
-from keras.integration_test.preprocessing_test_utils import BATCH_SIZE
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, TensorBoard
-import numpy as np
 import pickle
 
 from denoiser.config import DATA_DIR, REPORTS_DIR, MODELS_DIR, DATA_METADATA
 from models import SequenceLoader
 from models.custom_models import cnn_ced
-from models.custom_callbacks import LearningRateStopping, LearningRateLogger
+from models.custom_callbacks import LearningRateStopping
 
 BATCH_SIZE = 256
 
@@ -35,10 +33,8 @@ if __name__ == "__main__":
 
     callbacks = [
         ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=4, verbose=1, min_lr=1e-4),
-        LearningRateLogger(),
         TensorBoard(log_dir=REPORTS_DIR / model.name),
-        LearningRateStopping(min_lr=1e-4),
-        # ModelCheckpoint(f"{MODELS_DIR / model.name}.keras", verbose=1, ave_freq='epoch',) # TODO
+        LearningRateStopping(min_lr=1e-4)
     ]
 
     result = None
@@ -46,7 +42,7 @@ if __name__ == "__main__":
         result = model.fit(x=train, validation_data=validate, epochs=120, verbose=1, callbacks=callbacks)
 
     except KeyboardInterrupt:
-        print("User terminated learning rate, saving model...")
+        print("User terminated model fitting, saving model...")
 
     finally:
         model.save(f"{MODELS_DIR / model.name}.keras")
