@@ -131,7 +131,7 @@ def prepare_data(
             print("Exception happened, continuing...", e, end='\n')
 
     print(f"\nProcessing finished!\nNormalising data...")
-    savefile = os.path.join("..\\data\\processed\\", datetime.now().strftime("%Y-%m-%d_%H-%M")) if path is None else path
+    savefile = os.path.join("../data/processed\\", datetime.now().strftime("%Y-%m-%d_%H-%M")) if path is None else path
     metadata_ = {}
 
     if path is None:  # Dataset preparation
