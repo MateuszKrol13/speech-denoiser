@@ -5,7 +5,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "denoiser"
-version = "0.0.4"
+version = "0.0.5"
 description = "To-be-filled"
 authors = [
   { name = "Mateusz Krol" },

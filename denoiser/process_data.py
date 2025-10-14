@@ -12,8 +12,9 @@ import librosa
 from datetime import datetime
 import pickle
 from typing import Union
+import pandas as pd
 
-from denoiser.config import DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ
+from denoiser.config import DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT
 
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
@@ -55,6 +56,7 @@ def prepare_data(
         path: str=None,
         rec_no: int=None,
         snr_level: Union[int, float]=SNR_LEVEL,
+        data_notes: str=None,
 ) -> None:
     """Converts directory containing mp3 recordings into list of ndarrays containing specrogram data of noisy and clear
     recordings and saves them as pickle file if path is not specified.
@@ -72,12 +74,24 @@ def prepare_data(
     file will get corresponding .npy file containing noisy and clean audio spectrogram magnitude and phase data of noisy
     recording, used in audio reconstruction
     """
+    if data_notes is None:
+        raise TypeError("Data notes field must be filled in, if you don't want to provide notes, pass empty string!")
+    metadata_ = {"desc" : data_notes}
 
     # load audio and prepare data containers
     if path is None:
-        audio_files = [os.path.join(RAW_DATA, f) for f in os.listdir(RAW_DATA) if f.endswith(".mp3")]
-    else:
+        clips_data = pd.read_csv(CLIPS_DURATIONS, sep='\t')
+
+        # get specified number of recordings, or all recordings if number not specified
+        audio_list = clips_data["clip"][0:rec_no].to_list() if rec_no else clips_data["clip"].to_list()
+        audio_files = [os.path.join(RAW_DATA, file) for file in audio_list]
+        audio_times = clips_data["duration[ms]"][:rec_no] if rec_no else clips_data["duration[ms]"]
+        audio_time = int(audio_times.sum()) // (1000 * 60)  # np.int64 is not JSON serializable
+        metadata_.update({"hours": audio_time // 60, "minutes": audio_time})
+
+    else:  # data for inference
         audio_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".mp3")]
+
     clean_data_magnitude = []
     noisy_data_magnitude = []
     phase_data = []  # Phase data from noisy recording can be used to deconstruct spectrogram into audio
@@ -131,8 +145,8 @@ def prepare_data(
             print("Exception happened, continuing...", e, end='\n')
 
     print(f"\nProcessing finished!\nNormalising data...")
-    savefile = os.path.join("../data/processed\\", datetime.now().strftime("%Y-%m-%d_%H-%M")) if path is None else path
-    metadata_ = {}
+    savefile = os.path.join(DATA_ROOT, "processed", datetime.now().strftime("%Y-%m-%d_%H-%M")) if path is None else path
+    metadata_["data_len"] = len(clean_data_magnitude)
 
     if path is None:  # Dataset preparation
         os.mkdir(savefile)
@@ -170,10 +184,9 @@ def prepare_data(
 
     # readable form
     with open(os.path.join(savefile, "metadata.txt"), 'w') as readable_file:
-        json.dump({k:float(v) for k, v in metadata_.items()}, readable_file)
+        json.dump({k:(float(v) if isinstance(v, np.float32) else v) for k, v in metadata_.items()}, readable_file)
 
     print("Data processing finished!")
 
 if "__main__" == __name__:
-    pass
-    #prepare_data(include_phase=False, rec_no=100)
+    prepare_data(rec_no=8000, snr_level=0, data_notes="Smaller dataset of 8k recs")

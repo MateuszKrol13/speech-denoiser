@@ -8,9 +8,10 @@ from models import SequenceLoader
 from models.custom_models import cnn_ced
 from models.custom_callbacks import LearningRateStopping
 
-BATCH_SIZE = 256
+BATCH_SIZE = 2048
 
 if __name__ == "__main__":
+    model_name = input("Please provide model name: ")
 
     # Load data
     with open(DATA_DIR / 'clean.pkl', "rb") as f:
@@ -28,7 +29,7 @@ if __name__ == "__main__":
     train.indexes, validate.indexes = train.indexes[split_idx:], train.indexes[:split_idx]
 
     # Model
-    model = cnn_ced(model_name="CNN-CED-norm-test", show_model=False)
+    model = cnn_ced(model_name=model_name, show_model=False)
     model.metadata = metadata
 
     callbacks = [
