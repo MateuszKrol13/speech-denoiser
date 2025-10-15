@@ -1,5 +1,7 @@
 from tensorflow import keras
 import numpy as np
+from typing import Any
+from numpy.typing import DTypeLike
 
 class SequenceLoader(keras.utils.Sequence):
     def __init__(
@@ -51,6 +53,42 @@ class SequenceLoader(keras.utils.Sequence):
             axis=0
         )
         return x_batch, y_batch
+
+    def __len__(self):
+        return len(self.indexes) // self.batch_size
+
+    def on_epoch_end(self):
+        if self.shuffle:
+            np.random.shuffle(self.indexes)
+
+class MemmapLoader(keras.utils.Sequence):
+    def __init__(
+            self,
+            x_noisy: np.memmap[Any, np.float32],
+            y_clean: np.memmap[Any, np.float32],
+            batch_size: int,
+            idx_list: list[int]=None,
+            shuffle: bool=True,
+    ):
+        """
+
+        :param x_noisy:
+        :param y_clean:
+        :param batch_size:
+        :param idx_list: specifies which indexes can be accessed by
+        :param shuffle:
+        """
+        self.x = x_noisy
+        self.y = y_clean
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.indexes = [idx for idx in range(self.x.shape[0])]
+        if self.shuffle:
+            np.random.shuffle(self.indexes)
+
+    def __getitem__(self, index):
+        batch_indexes = self.indexes[index * self.batch_size:(index+1) * self.batch_size]
+        return self.x[batch_indexes, :, :], self.y[batch_indexes, :]
 
     def __len__(self):
         return len(self.indexes) // self.batch_size

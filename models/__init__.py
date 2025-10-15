@@ -1,6 +1,6 @@
 from models.custom_models import cnn_ced
 from models.custom_callbacks import LearningRateStopping
-from models.custom_dataloaders import SequenceLoader
+from models.custom_dataloaders import SequenceLoader, MemmapLoader
 
 def get_models():
     import os

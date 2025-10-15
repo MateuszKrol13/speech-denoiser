@@ -13,8 +13,10 @@ from datetime import datetime
 import pickle
 from typing import Union
 import pandas as pd
+from pandas.io.sas.sas_constants import dataset_length
 
-from denoiser.config import DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT
+from denoiser.config import (DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT, FRAMES_LENGTH,
+                             FEATURE_COUNT)
 
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
@@ -87,7 +89,7 @@ def prepare_data(
         audio_files = [os.path.join(RAW_DATA, file) for file in audio_list]
         audio_times = clips_data["duration[ms]"][:rec_no] if rec_no else clips_data["duration[ms]"]
         audio_time = int(audio_times.sum()) // (1000 * 60)  # np.int64 is not JSON serializable
-        metadata_.update({"hours": audio_time // 60, "minutes": audio_time})
+        metadata_.update({"hours": audio_time // 60, "minutes": audio_time % 60})
 
     else:  # data for inference
         audio_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".mp3")]
@@ -98,6 +100,7 @@ def prepare_data(
 
     # Process loop
     rec_no = min(rec_no, len(audio_files)) if rec_no is not None else len(audio_files)  # if not set, default to dir len
+    rec_no = rec_no - (rec_no % 10)  # recording count must be divisable by 10
     print(f"Loading and processing {rec_no} recordings...")
     timer_start = perf_counter()
     for recording_no in range(rec_no):
@@ -144,36 +147,63 @@ def prepare_data(
         except Exception as e:
             print("Exception happened, continuing...", e, end='\n')
 
-    print(f"\nProcessing finished!\nNormalising data...")
+    print(f"\nProcessing finished!\nReshaping and saving data...")
     savefile = os.path.join(DATA_ROOT, "processed", datetime.now().strftime("%Y-%m-%d_%H-%M")) if path is None else path
-    metadata_["data_len"] = len(clean_data_magnitude)
 
+    # For memory allocation purposes, the dataset is divided into ten equal parts
+    sample_length = sum([a.shape[1] - FRAMES_LENGTH + 1 for a in clean_data_magnitude])
+    metadata_["sample_count"] = sample_length
+
+    ### DATASET PREPARATION
     if path is None:  # Dataset preparation
         os.mkdir(savefile)
-        clean_data, noisy_data = os.path.join(savefile, "clean.pkl"), os.path.join(savefile, "noisy.pkl")
+        clean_data, noisy_data = os.path.join(savefile, "clean.npy"), os.path.join(savefile, "noisy.npy")
 
-        for arr, save in zip((clean_data_magnitude, noisy_data_magnitude), (clean_data, noisy_data)):
-            data_type = os.path.basename(save).split('.')[0]
-            print(f"Processing {data_type} data...", end="\t")
-            flatten_data = np.concatenate([a.flatten() for a in arr])
+        clean_mmap = np.memmap(clean_data, dtype='float32', mode='w+', shape=(sample_length, FEATURE_COUNT))
+        noisy_mmap = np.memmap(noisy_data, dtype='float32', mode='w+', shape=(sample_length, FEATURE_COUNT, FRAMES_LENGTH))
 
-            for stat, func in DATA_STATS.items():
-                stat_name = "_".join([data_type, stat])
-                metadata_[stat_name] = func(flatten_data)
 
-            mean, std = metadata_[data_type + "_mean"], metadata_[data_type + "_std"]
-            norm_arr = [(a - mean) / std for a in arr]
+        # clean data first
+        curr_idx = 0
+        for i in range(0, rec_no, rec_no // 10):
+            print(f"Processing clear data... stage {(i * 10 // rec_no) + 1} / 10", end="\r")
+            slice_data = clean_data_magnitude[i:i+(rec_no // 10)]
+            slice_data_len = sum([a.shape[1] - FRAMES_LENGTH + 1 for a in slice_data])
+            clean_mmap[curr_idx:curr_idx+slice_data_len, :] = np.concatenate(
+                [a[:, :-FRAMES_LENGTH+1].T for a in slice_data], axis=0  # lazy way to ensure arrays are reshaped the same way
+            )
+            curr_idx += slice_data_len
+            clean_mmap.flush()
+        print("")
 
-            print("saving...", end="\t")
-            with open(save, "wb") as file:
-                pickle.dump(norm_arr, file)
-            print("Done!")
+        # noisy data
+        curr_idx = 0
+        for i in range(0, rec_no, rec_no // 10):
+            print(f"Processing noisy data... stage {(i * 10 // rec_no) + 1} / 10", end="\r")
+            slice_data = noisy_data_magnitude[i:i+(rec_no // 10)]  # process data as 10 equal parts
+            # arr.shape = (129, ...), after window (129, ..., 8), swap axes to (..., 129, 8)
+            slice_data_windows = [
+                np.swapaxes(
+                    np.lib.stride_tricks.sliding_window_view(arr, window_shape=FRAMES_LENGTH, axis=-1), axis1=0, axis2=1,
+            )
+                for arr in slice_data
+            ]
+            slice_data_len = sum([a.shape[0] for a in slice_data_windows])
+            noisy_mmap[curr_idx:curr_idx+slice_data_len, :, :] = np.concatenate(slice_data_windows, axis=0)
+            curr_idx += slice_data_len
+            noisy_mmap.flush()
+        print("")
+
+        metadata_["noisy_mmap_shape"] = noisy_mmap.shape
+        metadata_["clean_mmap_shape"] = clean_mmap.shape
+
+    ### INFERENCE DATA PREPARATION
     else:
         for f_idx in range(len(audio_files)):
             file_path = audio_files[f_idx].split('.')[0]  # path with file name, but no extension
             for arr, save_suffix in zip(
-                    (clean_data_magnitude[f_idx], noisy_data_magnitude[f_idx], phase_data[f_idx]),
-                    ("_clean_mag.npy", "_noisy_mag.npy", "_phase.npy")
+                    ( noisy_data_magnitude[f_idx], phase_data[f_idx]),
+                    ("_noisy_mag.npy", "_phase.npy")
             ):
                 with open(file_path + save_suffix, "wb") as fs:
                     np.save(fs, arr)
@@ -189,4 +219,4 @@ def prepare_data(
     print("Data processing finished!")
 
 if "__main__" == __name__:
-    prepare_data(rec_no=8000, snr_level=0, data_notes="Smaller dataset of 8k recs")
+    prepare_data(rec_no=8000, snr_level=0, data_notes="8k data as memmap, reshaped properly")
