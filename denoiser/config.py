@@ -21,6 +21,7 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 SNR_LEVEL = 0  # dB
 SAMPLING_FREQ = 8000  # Hz
 FRAMES_LENGTH = 8  # Count of frames used to reconstruct clean signal
+FEATURES_COUNT = 129  # spectrogram bin count
 NOISE = 'PinkNoise'
 
 # Data statistics

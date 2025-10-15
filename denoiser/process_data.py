@@ -14,7 +14,8 @@ import pickle
 from typing import Union
 import pandas as pd
 
-from denoiser.config import DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT
+from denoiser.config import (DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT, FRAMES_LENGTH,
+                             FEATURES_COUNT)
 
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
@@ -87,7 +88,7 @@ def prepare_data(
         audio_files = [os.path.join(RAW_DATA, file) for file in audio_list]
         audio_times = clips_data["duration[ms]"][:rec_no] if rec_no else clips_data["duration[ms]"]
         audio_time = int(audio_times.sum()) // (1000 * 60)  # np.int64 is not JSON serializable
-        metadata_.update({"hours": audio_time // 60, "minutes": audio_time})
+        metadata_.update({"hours": audio_time // 60, "minutes": audio_time % 60})
 
     else:  # data for inference
         audio_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".mp3")]
@@ -144,9 +145,9 @@ def prepare_data(
         except Exception as e:
             print("Exception happened, continuing...", e, end='\n')
 
-    print(f"\nProcessing finished!\nNormalising data...")
+    print(f"\nProcessing finished!\nNormalising and saving data...")
     savefile = os.path.join(DATA_ROOT, "processed", datetime.now().strftime("%Y-%m-%d_%H-%M")) if path is None else path
-    metadata_["data_len"] = len(clean_data_magnitude)
+    metadata_["sample_count"] = sum([a.shape[1] - FRAMES_LENGTH + 1] for a in clean_data_magnitude)
 
     if path is None:  # Dataset preparation
         os.mkdir(savefile)
@@ -162,18 +163,23 @@ def prepare_data(
                 metadata_[stat_name] = func(flatten_data)
 
             mean, std = metadata_[data_type + "_mean"], metadata_[data_type + "_std"]
+
             norm_arr = [(a - mean) / std for a in arr]
 
             print("saving...", end="\t")
             with open(save, "wb") as file:
                 pickle.dump(norm_arr, file)
             print("Done!")
+
+        data_shape = len(clean_data_magnitude), FEATURES_COUNT, sum([a.shape[1] for a in clean_data_magnitude])
+        metadata_["arrays_shape"] = data_shape
+
     else:
         for f_idx in range(len(audio_files)):
             file_path = audio_files[f_idx].split('.')[0]  # path with file name, but no extension
             for arr, save_suffix in zip(
-                    (clean_data_magnitude[f_idx], noisy_data_magnitude[f_idx], phase_data[f_idx]),
-                    ("_clean_mag.npy", "_noisy_mag.npy", "_phase.npy")
+                    (noisy_data_magnitude[f_idx], phase_data[f_idx]),
+                    ("_noisy_mag.npy", "_phase.npy")
             ):
                 with open(file_path + save_suffix, "wb") as fs:
                     np.save(fs, arr)
