@@ -12,7 +12,7 @@ BATCH_SIZE = 2048
 
 if __name__ == "__main__":
     model_name = input("Please provide model name: ")
-
+    print("Loading data from files...")
     # Load data
     with open(DATA_DIR / 'clean.pkl', "rb") as f:
         y = pickle.load(f)
@@ -21,6 +21,7 @@ if __name__ == "__main__":
     with open(DATA_METADATA, "rb") as f:
         metadata = pickle.load(f)
 
+    print("Preparind dataloaders...")
     # dirty dataload workaround to see if everything works
     train = SequenceLoader(x_noisy=x, y_clean=y, window_size=8, batch_size=BATCH_SIZE, shuffle=True)
     validate = SequenceLoader(x_noisy=x, y_clean=y, window_size=8, batch_size=BATCH_SIZE, shuffle=True)
@@ -28,6 +29,7 @@ if __name__ == "__main__":
     split_idx = len(train.indexes) // 20
     train.indexes, validate.indexes = train.indexes[split_idx:], train.indexes[:split_idx]
 
+    print("Loading model...")
     # Model
     model = cnn_ced(model_name=model_name, show_model=False)
     model.metadata = metadata

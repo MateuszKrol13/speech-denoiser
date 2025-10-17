@@ -186,4 +186,6 @@ TODOs.txt
 
 # Recordings & data
 *.mp3
+*.wav
+*.vaw
 *.npy
