@@ -73,21 +73,22 @@ def apply_noise(clear_signal, noise_signal, *, snr_level):
     with N = factor * n:
     P_N = 1 / len(N) * sum( (factor * sample)^2 for sample in n)
     P_N = factor^2 / len(N) * sum(sample^2 for sample in n)
-    factor = sqrt( P_N * len(n) * sum(sample^2 for sample in n) )
-    factor = sqrt(P_N * len(n)) * sqrt(sum(sample^2 for sample in n))
+    factor = sqrt( P_N * len(n) / sum(sample^2 for sample in n) )
+    factor = sqrt(P_N * len(n)) / sqrt(sum(sample^2 for sample in n))
     
     substituting P_N from SNR_db
-    factor = sqrt( P_S / 10^(SNR_db / 10) * len(n)) * sqrt(sum(sample^2 for sample in n))
+    factor = sqrt( P_S / 10^(SNR_db / 10) * len(n)) / sqrt(sum(sample^2 for sample in n))
     
     with P_S ~ RMS_S ^ 2 = 1 / len(S) * sum( sample^2 for sample in S)
-    factor = sqrt( 1 / 10^(SNR_db / 10) ) * sum(sample^2 for sample in n) / sum(sample^2 for sample in S)
+    factor = sqrt( 1 / 10^(SNR_db / 10) ) * sqrt ( sum(sample^2 for sample in S) / sum(sample^2 for sample in n) )
     """
     signal_sum = np.sum(np.square(clear_signal))
+    noise_sum = np.sum(np.square(noise_signal))
     if signal_sum == 0:
         return noise_signal
 
     snr_factor = np.sqrt(1 / 10 ** (snr_level / 10))
-    noise_factor = snr_factor * np.sum(np.square(noise_signal)) / signal_sum
+    noise_factor = snr_factor * np.sqrt(signal_sum / noise_sum)
     scaled_noise = noise_factor * noise_signal
 
     return scaled_noise + clear_signal
