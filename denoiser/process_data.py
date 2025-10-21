@@ -6,6 +6,8 @@ transform. Each index of noisy data corrseponds to each index of clean data.
 """
 import json
 import os
+import random
+
 import numpy as np
 from time import perf_counter
 import librosa
@@ -15,8 +17,8 @@ from typing import Union
 import pandas as pd
 from scipy.io import wavfile
 
-from denoiser.config import (DATA_STATS, RAW_DATA, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT, FRAMES_LENGTH,
-                             FEATURES_COUNT)
+from denoiser.config import (DATA_STATS, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT, FRAMES_LENGTH,
+                             FEATURES_COUNT, TEST_DATA_RAW, VALIDATE_DATA_RAW, TRAIN_DATA_RAW)
 
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
@@ -141,7 +143,7 @@ def derive_features(
             clean_signal, sr = librosa.load(audio_paths[recording_no])
             downsampled_signal = librosa.resample(clean_signal, orig_sr=sr, target_sr=SAMPLING_FREQ, res_type='scipy')
             pink_noise = generate_pink_noise(downsampled_signal.shape[0], SAMPLING_FREQ)  # called each time, cause we want "random" noise
-            noisy_signal = normalize_audio(apply_noise(downsampled_signal, pink_noise, snr_level=snr_level))
+            noisy_signal = apply_noise(downsampled_signal, pink_noise, snr_level=snr_level)
             if include_noisy:
                 noisy_recs.append(noisy_signal)
 
@@ -189,7 +191,7 @@ def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_ST
         (dict[str, float]) : dictionary containg numeric value output for each of statistic function
     """
     data_len = sum([arr.shape[1] - FRAMES_LENGTH + 1 for arr in data])  # input data will be windowed
-    data_shape = (len(data), FEATURES_COUNT, data_len)
+    data_shape = (FEATURES_COUNT, data_len)
     stats = {"sample_count": data_len, "data_shape": data_shape}
 
     flatten_data = np.concatenate([a.flatten() for a in data])
@@ -209,16 +211,19 @@ def save_metadata(metadata: dict, path: str, readable: bool=True):
 
 
 def prepare_dataset(
+        data_pth: str=None,
         rec_no: int=None,
         snr_level: Union[int, float]=SNR_LEVEL,
         data_notes: str=None,
 ) -> None:
-    """Converts dataset directory specified in denoiser settings, which contains mp3 recordings into list of ndarrays
-    containing specrogram data of noisy and clear recordings and saves them as pickle file inside processed data folder
-    specified in settings.
+    """Converts dataset directory meeting criteria of having .tsv file describing audio recordings, with said recordings
+    as .wav files stored inside nested directory 'clips'. For each audio recording a 2D-ndarray of spectrogram magnitude
+     data is derived, these arrays are then saved as pickled list od ndarrays, as they are mismatched in length.
 
     Parameters:
-        rec_no (int): specifies the number of recordings to be used for feature extraction. If set to None, every .mp3
+        data_pth (str): provides the data directory, which meets following criteria: recordings metadata is stored in
+            .tsv file, audio recordings are located in 'clips' directory, each must have file extension of .wav
+        rec_no (int): specifies the number of recordings to be used for feature extraction. If set to None, every .wav
             file inside dataset directory are used and converted.
         snr_level (int | float): sets signal-to-noise rato in dB value for noisy recording. Regardless of specified SNR,
             noisy audio is limited to [-1, 1] range. Defaults to value specified in denoiser.config.
@@ -226,19 +231,24 @@ def prepare_dataset(
     Returns:
         (None): Saves data as bytedata of list of spectrogram noisy and clear data (2D-ndarray) into processed data
             directory.
+
+    Notes:
+        * Normalising noisy signal has no influence on derived features, as magnitude information
     """
     if data_notes is None:
         raise TypeError("Data notes field must be filled in, if you don't want to provide notes, pass empty string!")
+
+    if data_pth is None:
+        raise ValueError("Please provide path to dataset!")
+
     metadata_ = {"desc" : data_notes}
 
-    clips_data = pd.read_csv(CLIPS_DURATIONS, sep='\t')
+    tsv_file = [file for file in os.listdir(data_pth) if file.endswith('.tsv')][0]
+    clips_data = pd.read_csv(os.path.join(data_pth, tsv_file), sep='\t')
 
     # get specified number of recordings, or all recordings if number not specified
-    audio_list = clips_data["clip"][0:rec_no].to_list() if rec_no else clips_data["clip"].to_list()
-    audio_files = [os.path.join(RAW_DATA, file) for file in audio_list]
-    audio_times = clips_data["duration[ms]"][:rec_no] if rec_no else clips_data["duration[ms]"]
-    audio_time = int(audio_times.sum()) // (1000 * 60)  # np.int64 is not JSON serializable
-    metadata_.update({"hours": audio_time // 60, "minutes": audio_time % 60})
+    audio_list = clips_data["path"][0:rec_no].to_list() if rec_no else clips_data["path"].to_list()
+    audio_files = [os.path.join(data_pth, "clips", file + ".wav") for file in audio_list]
 
     clean_data_magnitude, noisy_data_magnitude, _, _ = derive_features(audio_paths=audio_files, snr_level=snr_level)
 

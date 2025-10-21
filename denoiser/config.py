@@ -4,9 +4,14 @@ from numpy import mean, std
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]  # project root directory
 DATA_ROOT = PROJ_ROOT / "data"
-DATA_DIR = PROJ_ROOT / "data\\processed\\2025-10-17_14-33\\"
-RAW_DATA = PROJ_ROOT / "data\\raw\\cv-corpus-20.0-delta-2024-12-06\\en\\clips\\"
+DATA_DIR = PROJ_ROOT / "data\\processed\\2025-10-18_20-11\\"
+TRAIN_DATA_RAW = PROJ_ROOT / "data\\raw\\commonvoice\\train\\"
+VALIDATE_DATA_RAW = PROJ_ROOT / "data\\raw\\commonvoice\\validation\\"
+TEST_DATA_RAW = PROJ_ROOT / "data\\raw\\commonvoice\\test\\"
 CLIPS_DURATIONS = PROJ_ROOT / "data\\raw\\cv-corpus-20.0-delta-2024-12-06\\en\\clip_durations.tsv"
+
+TRAIN_DATA = PROJ_ROOT / "data\\processed\\2025-10-21_11-25\\"
+VAL_DATA = PROJ_ROOT / "data\\processed\\2025-10-21_11-31\\"
 
 CLEAN_DATA = DATA_DIR / "clean.pkl"
 NOISY_DATA = DATA_DIR / "noisy.pkl"

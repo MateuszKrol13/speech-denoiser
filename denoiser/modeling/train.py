@@ -3,7 +3,7 @@ import os.path
 from tensorflow.keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, TensorBoard
 import pickle
 
-from denoiser.config import DATA_DIR, REPORTS_DIR, MODELS_DIR, DATA_METADATA
+from denoiser.config import DATA_DIR, REPORTS_DIR, MODELS_DIR, DATA_METADATA, TRAIN_DATA, VAL_DATA
 from models import SequenceLoader
 from models.custom_models import cnn_ced
 from models.custom_callbacks import LearningRateStopping
@@ -12,22 +12,24 @@ BATCH_SIZE = 2048
 
 if __name__ == "__main__":
     model_name = input("Please provide model name: ")
-    print("Loading data from files...")
-    # Load data
-    with open(DATA_DIR / 'clean.pkl', "rb") as f:
-        y = pickle.load(f)
-    with open(DATA_DIR / 'noisy.pkl', "rb") as f:
-        x = pickle.load(f)
-    with open(DATA_METADATA, "rb") as f:
-        metadata = pickle.load(f)
 
-    print("Preparind dataloaders...")
-    # dirty dataload workaround to see if everything works
+    # Train
+    print("Loading training data from files...")
+    with open(TRAIN_DATA / 'clean.pkl', "rb") as f:
+        y = pickle.load(f)
+    with open(TRAIN_DATA / 'noisy.pkl', "rb") as f:
+        x = pickle.load(f)
+    with open(TRAIN_DATA, "rb") as f:
+        metadata = pickle.load(f)
     train = SequenceLoader(x_noisy=x, y_clean=y, window_size=8, batch_size=BATCH_SIZE, shuffle=True)
+
+    # Validate
+    print("Loading validation data from files...")
+    with open(VAL_DATA / 'clean.pkl', "rb") as f:
+        y = pickle.load(f)
+    with open(VAL_DATA / 'noisy.pkl', "rb") as f:
+        x = pickle.load(f)
     validate = SequenceLoader(x_noisy=x, y_clean=y, window_size=8, batch_size=BATCH_SIZE, shuffle=True)
-    # around 5% used for validation
-    split_idx = len(train.indexes) // 20
-    train.indexes, validate.indexes = train.indexes[split_idx:], train.indexes[:split_idx]
 
     print("Loading model...")
     # Model
