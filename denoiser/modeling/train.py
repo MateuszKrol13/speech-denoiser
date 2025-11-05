@@ -8,7 +8,7 @@ from models import SequenceLoader
 from models.custom_models import cnn_ced
 from models.custom_callbacks import LearningRateStopping
 
-BATCH_SIZE = 2048
+BATCH_SIZE = 128
 
 if __name__ == "__main__":
     model_name = input("Please provide model name: ")
@@ -19,7 +19,7 @@ if __name__ == "__main__":
         y = pickle.load(f)
     with open(TRAIN_DATA / 'noisy.pkl', "rb") as f:
         x = pickle.load(f)
-    with open(TRAIN_DATA, "rb") as f:
+    with open(TRAIN_DATA / 'metadata.pkl', "rb") as f:
         metadata = pickle.load(f)
     train = SequenceLoader(x_noisy=x, y_clean=y, window_size=8, batch_size=BATCH_SIZE, shuffle=True)
 

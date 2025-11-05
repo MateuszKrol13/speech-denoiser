@@ -225,15 +225,15 @@ def prepare_dataset(
             .tsv file, audio recordings are located in 'clips' directory, each must have file extension of .wav
         rec_no (int): specifies the number of recordings to be used for feature extraction. If set to None, every .wav
             file inside dataset directory are used and converted.
-        snr_level (int | float): sets signal-to-noise rato in dB value for noisy recording. Regardless of specified SNR,
-            noisy audio is limited to [-1, 1] range. Defaults to value specified in denoiser.config.
+        snr_level (int | float): sets signal-to-noise rato in dB value for noisy recording. Defaults to value specified
+            in denoiser.config.
 
     Returns:
         (None): Saves data as bytedata of list of spectrogram noisy and clear data (2D-ndarray) into processed data
             directory.
 
     Notes:
-        * Normalising noisy signal has no influence on derived features, as magnitude information
+        * Clipping / scaling noisy signal has SIGNIFICANT influence on derived features, as magnitude information
     """
     if data_notes is None:
         raise TypeError("Data notes field must be filled in, if you don't want to provide notes, pass empty string!")
@@ -283,28 +283,74 @@ def process_data(
         path: str=None,
         snr_level: Union[int, float]=SNR_LEVEL,
 ):
-    audio_files = [os.path.join(path, f) for f in os.listdir(path) if f.endswith(".mp3")]
-    _, noisy_data_magnitude, phase_data, noisy_recs = derive_features(
-        audio_paths=audio_files,
+    """Processes audio files located inside specified path directory, calculates all data features and saves audio for
+    comparisson. Save is output to directory signed with function execution time inside 'data\processed' project
+    subdirectory.
+
+    This function is meant for deriving all necessary data parts used in inference.
+
+    Parameters:
+        path (str): provides directory containing audio files
+        snr_level (int | float): sets signal-to-noise rato in dB value for noisy recording. Regardless of specified SNR.
+            Defaults to value specified in denoiser.config.
+
+    Returns:
+        (None): Saves data as bytedata of list of spectrogram noisy data, phase spectrogram data of clean recording,
+            downsampled recording as well as downsampled noisy recording.
+
+    """
+    if path is None:
+        raise FileNotFoundError("Please provide path to test dataset!")
+
+    rec_names = [file for file in os.listdir(path) if file.endswith(".wav")]
+    _, noisy_data_magnitude, phase_data, _ = derive_features(
+        audio_paths=[os.path.join(path, f) for f in os.listdir(path) if f.endswith(".wav")],
         snr_level=snr_level,
         include_phase=True,
         include_noisy=True
     )
 
+    print("Creating dataset directory...")
+    savefile = os.path.join(DATA_ROOT, "processed", datetime.now().strftime("%Y-%m-%d_%H-%M"))
+    os.mkdir(savefile)
+
     print("Saving processed data!")
-    for f_idx in range(len(audio_files)):
-        file_path = audio_files[f_idx].split('.')[0]  # path with file name, but no extension
+    for f_idx in range(len(rec_names)):
+
+        # derived features
+        file_name = rec_names[f_idx].split('.')[0]  # file name, but no extension
         for arr, save_suffix in zip(
                 (noisy_data_magnitude[f_idx], phase_data[f_idx])
                 , ("_noisy_mag.npy", "_phase.npy")
         ):
-            with open(file_path + save_suffix, "wb") as fs:
+            with open(os.path.join(savefile, file_name + save_suffix), "wb") as fs:
                 np.save(fs, arr)
 
-            # Win11 does not support float encoding...
-            rec = np.iinfo(np.int16).max * noisy_recs[f_idx]
-            wavfile.write(file_path + ".wav", rate=SAMPLING_FREQ, data=rec.astype(np.int16))
+        # audio recording saves
+        clean_audio = librosa.load(
+            path=os.path.join(path, rec_names[f_idx]),
+            sr=SAMPLING_FREQ,
+        )[0]  # waveform
 
+        noisy_audio = apply_noise(
+            clear_signal=clean_audio,
+            noise_signal=generate_pink_noise(n_samples=len(clean_audio), sample_rate=SAMPLING_FREQ),
+            snr_level=snr_level
+        )
+
+        # Win11 does not support float encoding...
+        rec_clean = np.iinfo(np.int16).max * normalize_audio(clean_audio)  # this is not necessary
+        rec_noisy = np.iinfo(np.int16).max * normalize_audio(noisy_audio)  # but this is...
+
+        for audio_type, waveform in zip(
+                ("_clean", "_noisy",),
+                (rec_clean, rec_noisy)
+        ):
+            wavfile.write(
+                os.path.join(savefile, file_name + audio_type + ".wav"),
+                rate=SAMPLING_FREQ,
+                data=waveform.astype(np.int16)
+            )
     print("Data processing finished!")
 
 
