@@ -5,8 +5,8 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "denoiser"
-version = "0.0.6"
-description = "To-be-filled"
+version = "0.1.0"
+description = "Speech denoiser deep learning project that is my master thesis actually."
 authors = [
   { name = "Mateusz Krol" },
 ]

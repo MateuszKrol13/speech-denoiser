@@ -18,7 +18,7 @@ import pandas as pd
 from scipy.io import wavfile
 
 from denoiser.config import (DATA_STATS, SNR_LEVEL, SAMPLING_FREQ, CLIPS_DURATIONS, DATA_ROOT, FRAMES_LENGTH,
-                             FEATURES_COUNT, TEST_DATA_RAW, VALIDATE_DATA_RAW, TRAIN_DATA_RAW)
+                             FEATURES_COUNT, TEST_DATA, VAL_DATA, TRAIN_DATA)
 
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
@@ -227,6 +227,7 @@ def prepare_dataset(
             file inside dataset directory are used and converted.
         snr_level (int | float): sets signal-to-noise rato in dB value for noisy recording. Defaults to value specified
             in denoiser.config.
+        data_notes (str | None): describes dataset. Must be included, otherwise the process will not proceed.
 
     Returns:
         (None): Saves data as bytedata of list of spectrogram noisy and clear data (2D-ndarray) into processed data
@@ -388,7 +389,7 @@ def __legacy_prepare_data(
 
         # get specified number of recordings, or all recordings if number not specified
         audio_list = clips_data["clip"][0:rec_no].to_list() if rec_no else clips_data["clip"].to_list()
-        audio_files = [os.path.join(RAW_DATA, file) for file in audio_list]
+        audio_files = [os.path.join(TEST_DATA, file) for file in audio_list]
         audio_times = clips_data["duration[ms]"][:rec_no] if rec_no else clips_data["duration[ms]"]
         audio_time = int(audio_times.sum()) // (1000 * 60)  # np.int64 is not JSON serializable
         metadata_.update({"hours": audio_time // 60, "minutes": audio_time % 60})

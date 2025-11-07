@@ -179,6 +179,7 @@ models/*.keras
 !/data/processed/.gitkeep
 
 reports/*
+ideas/*
 data/demos/*
 !reports/.gitkeep
 !reports/figures
