@@ -7,7 +7,7 @@ import os
 import pickle
 
 from denoiser.config import SAMPLING_FREQ, SNR_LEVEL
-from denoiser.process_data import apply_noise, generate_pink_noise, get_feature_stats
+from denoiser import apply_noise, generate_pink_noise, get_feature_stats
 
 FeatureSet = namedtuple("FeatureSet", ["features","metadata"])
 
