@@ -39,7 +39,7 @@ if __name__ == "__main__":
         pred_denorm = np.where(y_pred > 0, y_pred * clean_stats["std"] + clean_stats["mean"], y_pred)
 
         # reconstruct signal
-        phase = clean.get_phase()[:, :(-FRAMES_LENGTH + 1)]
+        phase = noisy.get_phase()[:, :(-FRAMES_LENGTH + 1)]
         reconstructed_spec = pred_denorm * np.exp(1j * phase)
         reconstructed_sig = librosa.istft(reconstructed_spec, n_fft=256, hop_length=64, win_length=256, window="hamming")
 

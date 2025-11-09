@@ -39,3 +39,15 @@ def cnn_ced(model_name: str = "CNN-CED", show_model: bool = False) -> tf.keras.S
         m.summary()
 
     return m
+
+def mlp():
+    m = tf.keras.Sequential()
+
+    m.add(tf.keras.layers.Input(800))  # 100ms, fs=8kHz -> 800
+    for i in range(5):
+        m.add(tf.keras.layers.Dense(800/ (i +1), activation='linear'))
+        m.add(tf.keras.layers.BatchNormalization(axis=-1))
+
+    m.add(tf.keras.layers.Dense(800, activation='linear'))
+    m.compile(optimizer='adam', loss="MeanSquaredError", metrics=[])
+    m.summary()
