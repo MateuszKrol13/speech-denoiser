@@ -2,6 +2,7 @@ from tensorflow.keras.callbacks import ReduceLROnPlateau, TensorBoard
 
 from denoiser.config import REPORTS_DIR, MODELS_DIR, TRAIN_DATA, VAL_DATA, FRAMES_LENGTH
 from denoiser.data import Dataset, FeatureType, SignalType
+from denoiser.preprocessor import z_normalize
 from models import SequenceLoader, cnn_ced
 from models.custom_callbacks import LearningRateStopping
 
@@ -11,14 +12,14 @@ if __name__ == "__main__":
 
     print("Loading training dataset...")
     train_ds = Dataset(path=TRAIN_DATA).load()
-    x_train, _ = train_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.SOURCE, normalise=True)
-    y_train, _ = train_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.TARGET, normalise=True)
+    x_train, _ = train_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.SOURCE, normalise=z_normalize)
+    y_train, _ = train_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.TARGET, normalise=z_normalize)
     del train_ds
 
     print("Loading validation dataset...")
     validate_ds = Dataset(path=VAL_DATA).load()
-    x_val, _ = validate_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.SOURCE, normalise=True)
-    y_val, _ = validate_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.TARGET, normalise=True)
+    x_val, _ = validate_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.SOURCE, normalise=z_normalize)
+    y_val, _ = validate_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.TARGET, normalise=z_normalize)
     del validate_ds
 
     train = SequenceLoader(

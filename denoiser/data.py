@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Optional
+from typing import Optional, Union
 from collections import namedtuple
 import numpy as np
 import librosa
@@ -115,14 +115,14 @@ class Dataset(object):
         self._loaded = True
         return self
 
-    def extract_feature(self, feature: FeatureType, signal: SignalType, normalise: bool=False):
+    def extract_feature(self, feature: FeatureType, signal: SignalType, normalise: Union[callable, None]=None):
         features_list = []
         for data_elem in self:
             sig = getattr(data_elem, signal.value)  # get source or target
             features_list.append(getattr(sig, "get_" + feature.value)())  # get correct feature
         stats = get_feature_stats(features_list)
-        if normalise:
-            features_list = [(arr - stats["mean"]) / stats["std"] for arr in features_list]
+        if normalise is not None:
+            features_list = normalise(features_list)
 
         return FeatureSet(features=features_list, metadata=stats)
 

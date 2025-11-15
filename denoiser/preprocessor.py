@@ -3,7 +3,13 @@ Module of commonly used functions for signal processing used across whole projec
 """
 import numpy as np
 from denoiser.config import DATA_STATS, FRAMES_LENGTH, FEATURES_COUNT
+from denoiser.data import FeatureSet
 
+def z_normalize(features_list, stats):
+    return [(arr - stats["mean"]) / stats["std"] for arr in features_list]
+
+def min_max_normalize(features_list, stats, ubound: int, lbound:int):
+    return[((arr - stats["min"]) * (ubound - lbound) / (stats["max"] - stats["min"])) + lbound for arr in features_list ]
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
     """

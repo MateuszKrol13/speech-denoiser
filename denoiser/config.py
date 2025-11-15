@@ -26,4 +26,6 @@ NOISE = 'PinkNoise'
 DATA_STATS = {
     'mean' : mean,
     'std' : std,
+    'min' : min,
+    'max' : max,
 }
