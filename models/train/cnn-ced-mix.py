@@ -11,13 +11,13 @@ if __name__ == "__main__":
     BATCH_SIZE = 512
 
     print("Loading training dataset...")
-    train_ds = Dataset(path=TRAIN_DATA).load()
+    train_ds = Dataset(path=TRAIN_DATA).load().normalize_sources()
     x_train, _ = train_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.SOURCE, normalise=z_norm)
     y_train, _ = train_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.TARGET, normalise=z_norm)
     del train_ds
 
     print("Loading validation dataset...")
-    validate_ds = Dataset(path=VAL_DATA).load()
+    validate_ds = Dataset(path=VAL_DATA).load().normalize_sources()
     x_val, _ = validate_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.SOURCE, normalise=z_norm)
     y_val, _ = validate_ds.extract_feature(feature=FeatureType.MAGNITUDE, signal=SignalType.TARGET, normalise=z_norm)
     del validate_ds

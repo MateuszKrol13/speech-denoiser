@@ -7,7 +7,7 @@ import os
 import pickle
 
 from denoiser.config import SAMPLING_FREQ, SNR_LEVEL
-from denoiser import apply_noise, generate_pink_noise, get_feature_stats
+from denoiser import apply_noise, generate_pink_noise, get_feature_stats, minmax_norm, z_norm
 
 FeatureSet = namedtuple("FeatureSet", ["features","metadata"])
 
@@ -33,6 +33,9 @@ class Signal(object):
 
     def _calculate_spectrogram(self):
         self.spectrogram = librosa.stft(self.waveform, n_fft=256, hop_length=64, win_length=256, window="hamming")
+
+    def reset_features(self):
+        self.spectrogram = None
 
     def get_spectrogram(self):
         if self.spectrogram is None:
@@ -115,15 +118,25 @@ class Dataset(object):
         self._loaded = True
         return self
 
-    def extract_feature(self, feature: FeatureType, signal: SignalType, normalise: Union[callable, None]=None):
+    def normalize_sources(self):
+        # get the statistics
+        _, stats = self.extract_feature(feature=FeatureType.WAVEFORM, signal=SignalType.SOURCE)
+        for data_elem in self:
+            # min-max normalization
+            data_elem.source.waveform = minmax_norm(data_elem.source.waveform, stats)
+            data_elem.source.reset_features()
+        return self
+
+    def extract_feature(self, feature: FeatureType, signal: SignalType, normalise: Union[callable, None]=None, **kwargs):
         features_list = []
         for data_elem in self:
             sig = getattr(data_elem, signal.value)  # get source or target
             features_list.append(getattr(sig, "get_" + feature.value)())  # get correct feature
         stats = get_feature_stats(features_list)
         if normalise is not None:
-            features_list = normalise(features_list)
-
+            features_list = list(
+                map(lambda x: normalise(x, stats, **kwargs), features_list)
+            )
         return FeatureSet(features=features_list, metadata=stats)
 
     def to_pickle(self, path):

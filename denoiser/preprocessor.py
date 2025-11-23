@@ -3,13 +3,12 @@ Module of commonly used functions for signal processing used across whole projec
 """
 import numpy as np
 from denoiser.config import DATA_STATS, FRAMES_LENGTH, FEATURES_COUNT
-from denoiser.data import FeatureSet
 
-def z_normalize(features_list, stats):
-    return [(arr - stats["mean"]) / stats["std"] for arr in features_list]
+def z_norm(arr, stats):
+    return (arr - stats["mean"]) / stats["std"]
 
-def min_max_normalize(features_list, stats, ubound: int, lbound:int):
-    return[((arr - stats["min"]) * (ubound - lbound) / (stats["max"] - stats["min"])) + lbound for arr in features_list ]
+def minmax_norm(arr, stats, ubound: float=1, lbound: float=-1):
+    return ((arr - stats["min"]) * (ubound - lbound) / (stats["max"] - stats["min"])) + lbound
 
 def generate_pink_noise(n_samples:int, sample_rate:int):
     """
@@ -103,7 +102,7 @@ def normalize_audio(signal):
     else:
         return signal / max(abs(signal))
 
-def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_STATS) -> dict[str, float]:
+def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_STATS, ignore_zeros: bool=True) -> dict[str, float]:
     """
     Gets features global values, namely mean, standard deviation, sample count and data shape
 
@@ -115,11 +114,13 @@ def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_ST
     Returns:
         (dict[str, float]) : dictionary containg numeric value output for each of statistic function
     """
-    data_len = sum([arr.shape[1] - FRAMES_LENGTH + 1 for arr in data])  # input data will be windowed
+    data_len = sum([arr.shape[-1] - FRAMES_LENGTH + 1 for arr in data])  # input data will be windowed
     data_shape = (FEATURES_COUNT, data_len)
     stats = {"sample_count": data_len, "data_shape": data_shape}
 
     flatten_data = np.concatenate([a.flatten() for a in data])
+    if ignore_zeros:
+        flatten_data = flatten_data[flatten_data > 0]
     for stat, func in funcs.items():
         stats[stat] = func(flatten_data)
 

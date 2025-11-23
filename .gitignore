@@ -172,6 +172,7 @@ cython_debug/
 .idea
 *.asv
 models/*.keras
+*.diff
 
 # Data
 /data/raw/*
