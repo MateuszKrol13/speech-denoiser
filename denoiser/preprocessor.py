@@ -102,7 +102,7 @@ def normalize_audio(signal):
     else:
         return signal / max(abs(signal))
 
-def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_STATS, ignore_zeros: bool=True) -> dict[str, float]:
+def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_STATS) -> dict[str, float]:
     """
     Gets features global values, namely mean, standard deviation, sample count and data shape
 
@@ -119,8 +119,6 @@ def get_feature_stats(data: list[np.ndarray], funcs: dict[str, callable]=DATA_ST
     stats = {"sample_count": data_len, "data_shape": data_shape}
 
     flatten_data = np.concatenate([a.flatten() for a in data])
-    if ignore_zeros:
-        flatten_data = flatten_data[flatten_data > 0]
     for stat, func in funcs.items():
         stats[stat] = func(flatten_data)
 
