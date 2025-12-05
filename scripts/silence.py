@@ -56,5 +56,47 @@ def plot():
 def trim():
     pass
 
-if "__main__" == __name__:
+def eval_plots():
+    # Example data: each subplot has its own set of three values
+    data = [
+        [1.5387, 1.6811, 1.9526],
+        [0.6901, 0.6574, 0.7552],
+        [-0.0019, 5.7417, 10.2063]
+    ]
 
+    labels = ["Szum", "Z-norm", "Min-Max"]
+    metric = ["PESQ", "STOI", "SI-SDR"]
+    colors = ["#6B7A8F", "#384655", "#506070"]
+
+    x = np.arange(3) * 0.25  # keep bars close together
+    fig, axes = plt.subplots(1, 3, figsize=(12, 4), sharey=False)
+
+    for j in range(3):
+        ax = axes[j]
+        values = data[j]
+
+        # plot thin bars using normalized values
+        ax.grid(True, axis='y', linestyle='-', linewidth=0.5)
+        ax.set_axisbelow(True)
+        ax.bar(x, values, color=colors, width=0.2)
+
+        # add actual values above bars
+        for i in range(3):
+            ax.text(
+                x[i],
+                values[i] * 1.03,
+                f"{values[i]}",
+                ha="center",
+                va="bottom"
+            )
+
+        # cosmetic settings
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=30, ha='right')
+        ax.set_ylim(0, max(values) * 1.2)
+        ax.set_title(metric[j])
+    plt.tight_layout()
+    plt.show()
+
+if "__main__" == __name__:
+    pass
