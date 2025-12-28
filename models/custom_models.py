@@ -40,14 +40,57 @@ def cnn_ced(model_name: str = "CNN-CED", show_model: bool = False) -> tf.keras.S
 
     return m
 
-def mlp():
-    m = tf.keras.Sequential()
+def cnn_unet(model_name: str = "CNN-CED", show_model: bool = False) -> tf.keras.Sequential:
+    """
+    Fully convolutional network, based on https://arxiv.org/pdf/1609.07132 .
 
-    m.add(tf.keras.layers.Input(800))  # 100ms, fs=8kHz -> 800
-    for i in range(5):
-        m.add(tf.keras.layers.Dense(800/ (i +1), activation='linear'))
-        m.add(tf.keras.layers.BatchNormalization(axis=-1))
+    Layers
+    ------
+        - (Conv1D, ReLU, BN) x 15
+        - (Conv1D, ReLU)
 
-    m.add(tf.keras.layers.Dense(800, activation='linear'))
-    m.compile(optimizer='adam', loss="MeanSquaredError", metrics=[])
-    m.summary()
+    Kernels
+    -------
+         - Count: [18, 30, 8] x 5
+         - Sizes: [[9], [5], [9]] x 5
+
+    Optimizer
+    ---------
+        - Adam
+
+    Returns
+    -------
+        tf.keras.Sequential
+    """
+    # input layer
+    input = tf.keras.Input(shape=(129, 8))
+    x = input
+    block_outputs = []
+
+    # Build the blocks
+    for block_idx in range(0, 5):
+
+        if block_idx == 3:
+            x = tf.keras.layers.Add()([x, block_outputs[1]])
+        if block_idx == 4:
+            x = tf.keras.layers.Add()([x, block_outputs[0]])
+
+        l1 = tf.keras.layers.Conv1D(filters=18, kernel_size=9, padding='same', activation='relu', name="l1-b"+str(block_idx))(x)
+        l1 = tf.keras.layers.BatchNormalization(name="l1-b"+str(block_idx)+"-bn")(l1)
+        l2 = tf.keras.layers.Conv1D(filters=30, kernel_size=5, padding='same', activation='relu', name="l2-b"+str(block_idx))(l1)
+        l2 = tf.keras.layers.BatchNormalization(name="l2-b"+str(block_idx)+"-bn")(l2)
+        l3 = tf.keras.layers.Conv1D(filters=8, kernel_size=9, padding='same', activation='relu', name="l3-b"+str(block_idx))(l2)
+        x = tf.keras.layers.BatchNormalization(name="l3-b"+str(block_idx)+"-bn")(l3)
+
+        block_outputs.append(x)
+
+
+
+    # Final Conv1D layer
+    outputs = tf.keras.layers.Conv1D(1, 1, activation='relu')(x)
+
+    # Build model
+    model = tf.keras.Model(inputs=input, outputs=outputs, name="residual_cnn_1d")
+    model.summary()
+
+    return model
